@@ -1,0 +1,33 @@
+version: "3.8"
+
+services:
+
+  mysql:
+    image: mysql:8
+    container_name: mysql-db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: RootPassword123!
+      MYSQL_DATABASE: auth_service
+      MYSQL_USER: auth_user
+      MYSQL_PASSWORD: Str0ng@Password123
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  auth-service:
+    build: .
+    container_name: auth-service
+    depends_on:
+      - mysql
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/auth_service
+      SPRING_DATASOURCE_USERNAME: auth_user
+      SPRING_DATASOURCE_PASSWORD: Str0ng@Password123
+    restart: always
+
+volumes:
+  mysql_data:
