@@ -1,78 +1,103 @@
 package com.auth_service.auth_service.entity;
 
-import java.security.Timestamp;
 
+import jakarta.persistence.*;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
-
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.Size;
-import lombok.Data;
-import lombok.Getter;
-import lombok.Setter;
-
-enum Role{
-    ADMINSTRATIVE,
-    ADMIN,
-    OPERATOR,
-    RESPONDER
-
-}
-
-
-
+import org.hibernate.annotations.UpdateTimestamp;
+ 
+import java.time.Instant;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
+ 
 @Entity
-@Table(name = "users")
-@Data
-
-
+@Table(
+    name = "users",
+    indexes = {
+        @Index(name = "idx_users_email", columnList = "email", unique = true)
+    }
+)
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class User {
-
-    private static final String NAME_MANDATORY = "Username is mandatory";
-    private static final String PASSWORD_REQUIRED= "Password is mandatory";
-    private static final String PASSWORD_SHOULD_HAVE_ATLEAST_6_CHARACTER= "Password atleast 6 Character long";
-
-
+ 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "userID")
-    private Long userId;
-
-    @Column(unique = true, nullable = false)
-    @NotBlank(message = NAME_MANDATORY)
-    @Pattern(regexp = "^[a-zA-Z0-9_]+$")
-    private String username;
-
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(updatable = false, nullable = false)
+    private UUID id;
+ 
+    @Column(nullable = false, length = 50)
+    private String firstName;
+ 
+    @Column(nullable = false, length = 50)
+    private String lastName;
+ 
+    @Column(nullable = false, unique = true, length = 255)
+    private String email;
+ 
     @Column(nullable = false)
-    @NotBlank(message = NAME_MANDATORY)
-    private String name;
-
-    @Column
-    private String portfolio; //optional
-
-    @Enumerated(EnumType.STRING)
+    private String passwordHash;   // BCrypt — never raw password
+ 
     @Column(nullable = false)
-    @jakarta.validation.constraints.NotNull(message = "Role is Required")
-    private Role role;
-
-    @Column(name="created_at",updatable = false)
+    @Builder.Default
+    private boolean emailVerified = false;
+ 
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean mfaEnabled = false;
+ 
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean accountLocked = false;
+ 
+    @Column(nullable = false)
+    @Builder.Default
+    private boolean enabled = true;
+ 
+    @Column(nullable = false)
+    @Builder.Default
+    private int failedLoginAttempts = 0;
+ 
+    private Instant lockedUntil;
+    private Instant lastLoginAt;
+ 
     @CreationTimestamp
-    private Timestamp createdAt;
-
-
+    @Column(nullable = false, updatable = false)
+    private Instant createdAt;
+ 
+    @UpdateTimestamp
     @Column(nullable = false)
-    @NotBlank(message = PASSWORD_REQUIRED)
-    @Size(min = 6,message = PASSWORD_SHOULD_HAVE_ATLEAST_6_CHARACTER)
-    private String password;
-
-
-
+    private Instant updatedAt;
+ 
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(
+        name = "user_roles",
+        joinColumns = @JoinColumn(name = "user_id"),
+        inverseJoinColumns = @JoinColumn(name = "role_id")
+    )
+    @Builder.Default
+    private Set<Role> roles = new HashSet<>();
+ 
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private Set<RefreshToken> refreshTokens = new HashSet<>();
+ 
+    // Convenience: full name
+    public String getFullName() {
+        return firstName + " " + lastName;
+    }
+ 
+    public boolean isAccountNonLocked() {
+        if (!accountLocked) return true;
+        if (lockedUntil != null && Instant.now().isAfter(lockedUntil)) {
+            // Lock period expired — auto-unlock logic lives in service,
+            // but this gives a live check without a DB call
+            return true;
+        }
+        return false;
+    }
 }
