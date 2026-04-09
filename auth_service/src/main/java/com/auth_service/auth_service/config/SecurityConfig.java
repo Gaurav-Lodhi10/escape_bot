@@ -92,7 +92,8 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
-        config.setAllowedOrigins(List.of("http://localhost:3000", "https://yourdomain.com"));
+        // Allow file:// protocol (null origin) for local HTML files
+        config.setAllowedOriginPatterns(List.of("*"));  // Allows all origins including null
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Trace-Id"));
         config.setExposedHeaders(List.of("Authorization"));
